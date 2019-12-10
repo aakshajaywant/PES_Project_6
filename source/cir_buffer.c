@@ -141,6 +141,7 @@ ring_status buff_add_item(ring_buffer *p,uint16_t item)
 			else if((buff_check_full(p) == buffer_empty) || (buff_check_full(p) == buffer_not_full))
 			{
 				*(p->buffer + p->head) = item;
+				PRINTF("\n\rTHE ITEM STORED ISSSSSSSS %d",item);
 				//PRINTF("**************************************************************");
 				PRINTF("\n\r p->buffer[p->head] character: %c",*(p->buffer + p->head));
 				PRINTF("\n\r address of p->head  %p",(p->buffer + p->head));

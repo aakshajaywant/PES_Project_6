@@ -83,9 +83,11 @@ volatile uint16_t g_Adc16ConversionValue = 0;
 
 volatile uint16_t var_sinefunc;
 volatile uint8_t n=0;
-uint8_t num_execute;
+volatile uint8_t num_execute=1;
 volatile bool g_Adc16ConversionDoneFlag = false;
 //uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+
+TaskHandle_t TaskHandle_1;
 
 ring_buffer *adc_buff;
 uint16_t dsp_buff[100];
@@ -131,6 +133,7 @@ void DEMO_ADC16_IRQ_HANDLER_FUNC(void)
     g_Adc16ConversionDoneFlag = true;
     /* Read conversion result to clear the conversion completed flag. */
     g_Adc16ConversionValue = ADC16_GetChannelConversionValue(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP);
+
 }
 
 
@@ -187,7 +190,7 @@ int main(void)
     xTaskCreate(ADC_converter, "ADC_converter", configMINIMAL_STACK_SIZE + 90, NULL, adc_task_PRIORITY, NULL);
   //  xTaskCreate(STORE_BUFFER_1, "STORE_BUFFER_1", configMINIMAL_STACK_SIZE + 38, NULL, store_buffer1_PRIORITY, NULL);
   //  xTaskCreate(TRANS_BUFFER_2, "TRANS_BUFFER_2", configMINIMAL_STACK_SIZE + 38, NULL, transfer_buffer2_PRIORITY, NULL);
-    xTaskCreate(SW_task, "SW_task", configMINIMAL_STACK_SIZE + 90, NULL, dac_task_PRIORITY, NULL);
+   // xTaskCreate(SW_task, "SW_task", configMINIMAL_STACK_SIZE + 90, NULL, dac_task_PRIORITY, NULL);
     /*Task Scheduler*/
     vTaskStartScheduler();
     for (;;)
@@ -271,10 +274,11 @@ static void ADC_converter(void *pvParameters)
 			 PRINTF("\n \r End time is:");
 			 timestamps(timecount);
 			 count=0;
-			 xTaskCreate(dsp_math,"dsp_math", configMINIMAL_STACK_SIZE + 90, NULL, adc_task_PRIORITY, NULL);
+			// xTaskCreate(dsp_math,"dsp_math", configMINIMAL_STACK_SIZE + 90, NULL, 0,TaskHandle_1);
 
 //			 xQueueReset(adc_queue);
-//			 //xTaskCreate(dsp_math, "dsp_math", configMINIMAL_STACK_SIZE + 38, NULL, dsp_math_PRIORITY, NULL);
+			 xTaskCreate(dsp_math, "dsp_math", configMINIMAL_STACK_SIZE + 38, NULL, dsp_math_PRIORITY, NULL);
+	//		  xTaskResumeFromISR( TaskHandle_1 );
 		 	 }
 		 	 else
 		 	 {
@@ -288,74 +292,6 @@ static void ADC_converter(void *pvParameters)
 	 }
 }
 
-
-//static void STORE_BUFFER_1(void *pvParameters)
-//{
-//	 g_Adc16ConversionDoneFlag = false;
-//	 ADC16_SetChannelConfig(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP, &g_adc16ChannelConfigStruct);
-//	 g_Adc16ConversionDoneFlag = true;
-//	 /* Read conversion result to clear the conversion completed flag. */
-//	 g_Adc16ConversionValue = ADC16_GetChannelConversionValue(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP);
-//	 while (!g_Adc16ConversionDoneFlag)
-//	  {
-//	  }
-//	 PRINTF("\r\n\r\nADC Value: %d\r\n", g_Adc16ConversionValue);
-//
-//	 /* Convert ADC value to a voltage based on 3.3V VREFH on board */
-//	 voltRead = (float)(g_Adc16ConversionValue * (VREF_BRD / SE_12BIT));
-//	 PRINTF("\r\nADC Voltage: %0.3f\r\n", voltRead);
-//}
-//
-//static void TRANS_BUFFER_2(void *pvParameters)
-//{
-//	 g_Adc16ConversionDoneFlag = false;
-//	 ADC16_SetChannelConfig(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP, &g_adc16ChannelConfigStruct);
-//	 g_Adc16ConversionDoneFlag = true;
-//	 /* Read conversion result to clear the conversion completed flag. */
-//	 g_Adc16ConversionValue = ADC16_GetChannelConversionValue(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP);
-//	 while (!g_Adc16ConversionDoneFlag)
-//	  {
-//	  }
-//	 PRINTF("\r\n\r\nADC Value: %d\r\n", g_Adc16ConversionValue);
-//
-//	 /* Convert ADC value to a voltage based on 3.3V VREFH on board */
-//	 voltRead = (float)(g_Adc16ConversionValue * (VREF_BRD / SE_12BIT));
-//	 PRINTF("\r\nADC Voltage: %0.3f\r\n", voltRead);
-//}
-
-//void dsp_math(){
-//for(;;){
-//float max=0,min=0,avg=0,sd=0,cal=0;
-//cal=3.3/4096; //step
-//for(int count=0;count<64;count++)
-//{
-//if(adc_buffer < min)
-//{
-//min = adc_buffer;
-//}
-//else if(adc_buffer>max)
-//{
-//max=adc_buffer;
-//}
-//avg=avg+adc_buffer;
-////adc_buffer++;
-//}
-//min=min*cal;
-//max=max*cal;
-//avg=avg*cal;
-//avg=avg/64.00;
-//for (int count2 = 0; count2 < 64;count2++)
-//{
-//float buff_val=adc_buffer*cal;
-//       sd = sd+ pow((adc_buffer - avg), 2);
-//   }
-//sd=sqrt(sd/64.00);
-//
-//PRINTF("\n \r Min=%f,Max=%f,Avg=%f,sd=%f",min,max,avg,sd);
-//}
-//}
-//
-//
 
 /* Switch Task */
 static void SW_task(void *pvParameters)
@@ -375,17 +311,12 @@ static void SW_task(void *pvParameters)
 
 void dsp_math()
 {
+PRINTF("*************************************************************************************************************************************************");
 for(;;)
 	{
 		float max=3,min=1,avg=0,sd=0,cal=0,buff_val[64];
 		cal = 3.3/4096; //step
 		uint8_t count;
-
-		if(num_execute >4)
-		{
-			vTaskSuspendAll();
-		}
-
 		for( count=0;count<64;count++)
 		{
 			if((*dsp_buff+count) < min)
@@ -411,8 +342,20 @@ for(;;)
 			sd=sqrt(sd/64.00);
 
 		PRINTF("\n \r Min=%f,Max=%f,Avg=%f,sd=%f",min,max,avg,sd);
-		vTaskSuspend(NULL);
+		PRINTF("/*****NUMMMMMMMMMMMMMMMMMMMM COUNTTTTTTTTT ISSSSS::::::::::::: %d **************/",num_execute);
+		num_execute++;
+
+			if(num_execute >4)
+			{
+				PRINTF("/*****************************************TASKSSSS SUSPENDED AS COUNT==5**************************/");
+				//vTaskSuspendAll(TaskHandle_1);
+				vTaskEndScheduler();
+			}
+
+			vTaskSuspend(TaskHandle_1);
+
 	}
+ //num_execute++;
 }
 
 

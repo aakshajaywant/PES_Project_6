@@ -163,7 +163,7 @@
 #define INCLUDE_xTaskAbortDelay                 0
 #define INCLUDE_xTaskGetHandle                  0
 #define INCLUDE_xTaskResumeFromISR              1
-
+#define INCLUDE_
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names. */
