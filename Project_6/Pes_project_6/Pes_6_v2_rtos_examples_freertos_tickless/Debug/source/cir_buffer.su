@@ -1,0 +1,8 @@
+cir_buffer.c:22:13:buff_initialize	16	static
+cir_buffer.c:57:13:buff_check_full	16	static
+cir_buffer.c:83:13:buff_check_empty	16	static
+cir_buffer.c:109:13:buff_add_item	16	static
+cir_buffer.c:169:13:buff_remove_item	24	static
+cir_buffer.c:228:13:buff_destroy	16	static
+cir_buffer.c:252:13:buff_ptr_valid	16	static
+cir_buffer.c:275:13:buff_resize	16	static
