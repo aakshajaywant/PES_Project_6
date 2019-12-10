@@ -15,13 +15,16 @@
  */
 #include "FreeRTOS.h"
 #include "task.h"
-#include "queue.h"
 #include "timers.h"
 #include "semphr.h"
-
+#include "queue.h"
+#include "logger.h"
 //#include "fsl_dac.h"
 //#include "fsl_adc16.h"
 #include "dacadc.h"
+#include "queue_adc.h"
+#include "dma.h"
+#include "cir_buffer.h"
 #include "fsl_device_registers.h"
 #include "fsl_debug_console.h"
 #include "fsl_port.h"
@@ -40,9 +43,14 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
+extern unsigned long long timecount;
+static QueueHandle_t adc_queue = NULL;
+static QueueHandle_t dsp_queue = NULL;
+static SemaphoreHandle_t xSemaphore_producer;
+
 
 adc16_channel_config_t g_adc16ChannelConfigStruct;
-volatile uint32_t g_Adc16ConversionValue = 0;
+volatile uint16_t g_Adc16ConversionValue = 0;
 
 #define VREF_BRD 3.300
 #define SE_12BIT 4096.0
@@ -63,6 +71,7 @@ volatile uint32_t g_Adc16ConversionValue = 0;
 /* clang-format off */
 #define dac_task_PRIORITY   ( configMAX_PRIORITIES - 1 )
 #define adc_task_PRIORITY   ( configMAX_PRIORITIES - 2 )
+#define dsp_math_PRIORITY	( configMAX_PRIORITIES - 4 )
 
 //#define store_buffer1_PRIORITY ( configMAX_PRIORITIES - 3 )
 //#define transfer_buffer2_PRIORITY ( configMAX_PRIORITIES - 3 )
@@ -74,8 +83,13 @@ volatile uint32_t g_Adc16ConversionValue = 0;
 
 volatile uint16_t var_sinefunc;
 volatile uint8_t n=0;
-
+uint8_t num_execute;
 volatile bool g_Adc16ConversionDoneFlag = false;
+//uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+
+ring_buffer *adc_buff;
+uint16_t dsp_buff[100];
+ring_status receive_status;
 /**************of no use ******************/
  static const unsigned int sine_values[] =
         {
@@ -102,7 +116,7 @@ void sine_func(void);
 static void DAC_converter(void *pvParameters);
 static void ADC_converter(void *pvParameters);
 static void SW_task(void *pvParameters);
-
+void dsp_math();
 SemaphoreHandle_t xSWSemaphore = NULL;
 /*******************************************************************************
  * Code
@@ -154,6 +168,10 @@ int main(void)
     BOARD_InitDebugConsole();
     EnableIRQ(DEMO_ADC16_IRQn);
     DAC_ADC_Init();
+    adc_queue = xQueueCreate(64, 32);
+    dsp_queue = xQueueCreate(64, 32);
+
+
     /* Print a note to terminal. */
     PRINTF("Tickless Demo example\r\n");
 #ifdef BOARD_SW_NAME
@@ -165,11 +183,11 @@ int main(void)
     GPIO_PinInit(BOARD_SW_GPIO, BOARD_SW_GPIO_PIN, &sw_config);
 #endif
     /*Create tickless task*/
-    xTaskCreate(DAC_converter, "DAC_converter", configMINIMAL_STACK_SIZE + 38, NULL, dac_task_PRIORITY, NULL);
-    xTaskCreate(ADC_converter, "ADC_converter", configMINIMAL_STACK_SIZE + 38, NULL, adc_task_PRIORITY, NULL);
+    xTaskCreate(DAC_converter, "DAC_converter", configMINIMAL_STACK_SIZE + 90, NULL, dac_task_PRIORITY, NULL);
+    xTaskCreate(ADC_converter, "ADC_converter", configMINIMAL_STACK_SIZE + 90, NULL, adc_task_PRIORITY, NULL);
   //  xTaskCreate(STORE_BUFFER_1, "STORE_BUFFER_1", configMINIMAL_STACK_SIZE + 38, NULL, store_buffer1_PRIORITY, NULL);
   //  xTaskCreate(TRANS_BUFFER_2, "TRANS_BUFFER_2", configMINIMAL_STACK_SIZE + 38, NULL, transfer_buffer2_PRIORITY, NULL);
-    xTaskCreate(SW_task, "SW_task", configMINIMAL_STACK_SIZE + 38, NULL, dac_task_PRIORITY, NULL);
+    xTaskCreate(SW_task, "SW_task", configMINIMAL_STACK_SIZE + 90, NULL, dac_task_PRIORITY, NULL);
     /*Task Scheduler*/
     vTaskStartScheduler();
     for (;;)
@@ -211,24 +229,62 @@ static void DAC_converter(void *pvParameters)
 
 static void ADC_converter(void *pvParameters)
 {
-
-	 float voltRead;
+	uint8_t count=0;
+	// float voltRead;
+	uint16_t voltRead;
+	adc_buff = (ring_buffer*)malloc(sizeof(ring_buffer));
+	 receive_status = buff_initialize(adc_buff, 64);
+	 PRINTF("RECEIVE STATUS for initttt ISSS %d",receive_status);
+	// dsp_buff = (ring_buffer*)malloc(sizeof(ring_buffer));
+	// receive_status = buff_initialize(dsp_buff, 64);
 	 for (;;)
 	 {
-	 g_Adc16ConversionDoneFlag = false;
-	 ADC16_SetChannelConfig(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP, &g_adc16ChannelConfigStruct);
-	 g_Adc16ConversionDoneFlag = true;
-	 /* Read conversion result to clear the conversion completed flag. */
-	 g_Adc16ConversionValue = ADC16_GetChannelConversionValue(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP);
-	 while (!g_Adc16ConversionDoneFlag)
-	  {
-	  }
-	 PRINTF("\r\n\r\nADC Value: %d\r\n", g_Adc16ConversionValue);
+		 g_Adc16ConversionDoneFlag = false;
+		 ADC16_SetChannelConfig(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP, &g_adc16ChannelConfigStruct);
+		 g_Adc16ConversionDoneFlag = true;
+		 /* Read conversion result to clear the conversion completed flag. */
+		 g_Adc16ConversionValue = ADC16_GetChannelConversionValue(DEMO_ADC16_BASEADDR, DEMO_ADC16_CHANNEL_GROUP);
+		 while (!g_Adc16ConversionDoneFlag)
+		 {
+		 }
+		 PRINTF("\r\n\r\nADC Value: %d\r\n", g_Adc16ConversionValue);
 
-	 /* Convert ADC value to a voltage based on 3.3V VREFH on board */
-	 voltRead = (float)(g_Adc16ConversionValue * (VREF_BRD / SE_12BIT));
-	 PRINTF("\r\nADC Voltage: %0.3f\r\n", voltRead);
-	 vTaskDelay(TIME_DELAY_SLEEP);
+		 /* Convert ADC value to a voltage based on 3.3V VREFH on board */
+		 voltRead = (uint16_t)(g_Adc16ConversionValue * (VREF_BRD / SE_12BIT));
+		// PRINTF("\r\nADC Voltage: %0.3f\r\n", voltRead);
+		 PRINTF("\r\nADC Voltage: %d\r\n", voltRead);
+		 // log_add(char *log)
+
+
+	  //   xSemaphoreGive(xSemaphore_consumer);
+
+		// xQueueSend(adc_queue, &voltRead, 10);
+
+//		 adc_queue++;
+//
+		 	 if(count==64)
+		 	 {
+		 	 PRINTF("\n \r DMA transfer done from adc to dspppppppppppppppppppp");
+			 timestamps(timecount);
+		 	 DMA();
+			 transfer_DMA(adc_buff,dsp_buff,64);
+			 PRINTF("\n \r End time is:");
+			 timestamps(timecount);
+			 count=0;
+			 xTaskCreate(dsp_math,"dsp_math", configMINIMAL_STACK_SIZE + 90, NULL, adc_task_PRIORITY, NULL);
+
+//			 xQueueReset(adc_queue);
+//			 //xTaskCreate(dsp_math, "dsp_math", configMINIMAL_STACK_SIZE + 38, NULL, dsp_math_PRIORITY, NULL);
+		 	 }
+		 	 else
+		 	 {
+		 	 PRINTF("\n\r COUNT LESS THAN 64::::: %d",count);
+			 count++;
+			 receive_status = buff_add_item(adc_buff,g_Adc16ConversionValue);
+			// PRINTF("RECEIVE STATUS for add itemmmm of adcccc bufferrrrr ISSS %d",receive_status);
+
+		 	 }
+		 vTaskDelay(TIME_DELAY_SLEEP);
 	 }
 }
 
@@ -267,6 +323,39 @@ static void ADC_converter(void *pvParameters)
 //	 PRINTF("\r\nADC Voltage: %0.3f\r\n", voltRead);
 //}
 
+//void dsp_math(){
+//for(;;){
+//float max=0,min=0,avg=0,sd=0,cal=0;
+//cal=3.3/4096; //step
+//for(int count=0;count<64;count++)
+//{
+//if(adc_buffer < min)
+//{
+//min = adc_buffer;
+//}
+//else if(adc_buffer>max)
+//{
+//max=adc_buffer;
+//}
+//avg=avg+adc_buffer;
+////adc_buffer++;
+//}
+//min=min*cal;
+//max=max*cal;
+//avg=avg*cal;
+//avg=avg/64.00;
+//for (int count2 = 0; count2 < 64;count2++)
+//{
+//float buff_val=adc_buffer*cal;
+//       sd = sd+ pow((adc_buffer - avg), 2);
+//   }
+//sd=sqrt(sd/64.00);
+//
+//PRINTF("\n \r Min=%f,Max=%f,Avg=%f,sd=%f",min,max,avg,sd);
+//}
+//}
+//
+//
 
 /* Switch Task */
 static void SW_task(void *pvParameters)
@@ -282,6 +371,54 @@ static void SW_task(void *pvParameters)
 
     }
 }
+
+
+void dsp_math()
+{
+for(;;)
+	{
+		float max=3,min=1,avg=0,sd=0,cal=0,buff_val[64];
+		cal = 3.3/4096; //step
+		uint8_t count;
+
+		if(num_execute >4)
+		{
+			vTaskSuspendAll();
+		}
+
+		for( count=0;count<64;count++)
+		{
+			if((*dsp_buff+count) < min)
+			{
+			min = (*dsp_buff+count);
+			}
+			else if((*dsp_buff+count)>max)
+			{
+			max= (*dsp_buff+count);
+			}
+			avg = avg + (*dsp_buff+count);
+//adc_buffer++;
+		}
+			min = min*cal;
+			max = max*cal;
+			avg = avg*cal;
+			avg = avg/64.00;
+		for (uint8_t count2 = 0; count2 < 64;count2++)
+		{
+			buff_val[count2] = (*dsp_buff+count)*cal;
+			sd = sd + pow(((*dsp_buff+count) - avg), 2);
+		}
+			sd=sqrt(sd/64.00);
+
+		PRINTF("\n \r Min=%f,Max=%f,Avg=%f,sd=%f",min,max,avg,sd);
+		vTaskSuspend(NULL);
+	}
+}
+
+
+
+
+
 
 
 /*!
@@ -333,3 +470,6 @@ IRQn_Type vPortGetLptmrIrqn(void)
     return TICKLESS_LPTMR_IRQn;
 }
 #endif /* configUSE_TICKLESS_IDLE */
+
+
+
