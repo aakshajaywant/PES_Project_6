@@ -6,34 +6,34 @@ Project Name: FreeRTOS, ADC, DAC, DMA, DSP
 || FILE CONTENTS:- ||
 PES_Project_6
 
--Includes
--CMSIS
--board
--drivers
-	-fsl_adc16.c
-	-fsl_adc16.h
-	-fsl_dma.c
-	-fsl_dma.h
-	-fsl_dmamux.c
-	-fsl_dmamux.h
--freeRTOS
--source
-	-dacadc.c
-	-dacadc.h
-	-cir_buffer.c
-	-cir_buffer.h
-	-dma.c
-	-dma.h
-	-led.c
-	-led.h
-	-logger.c
-	-logger.h
-	-freertos_tickless.c
-	-FreeRTOSConfig.h
--startup
--utilities
--Debug
--README.md
+	-Includes
+	-CMSIS
+	-board
+	-drivers
+		-fsl_adc16.c
+		-fsl_adc16.h
+		-fsl_dma.c
+		-fsl_dma.h
+		-fsl_dmamux.c
+		-fsl_dmamux.h
+	-freeRTOS
+	-source
+		-dacadc.c
+		-dacadc.h
+		-cir_buffer.c
+		-cir_buffer.h
+		-dma.c
+		-dma.h
+		-led.c
+		-led.h
+		-logger.c
+		-logger.h
+		-freertos_tickless.c
+		-FreeRTOSConfig.h
+	-startup
+	-utilities
+	-Debug
+	-README.md
 
 || OBSERVATIONS :- ||
 1) Generated sine wave from the DAC and fed them to ADC to generate a 12bit digital output.
@@ -73,13 +73,13 @@ sampling until the next series of samples are collected.
 
 1)Circular Buffer c-Function to add a new item to a buffer
 
--Function to remove oldest item from a buffer
--Function to check is buffer full
--Function to check is buffer empty
--Function to verify buffer is initialized
--Function to verify the buffer pointer is valid
--Function to initialize a buffer
--Function to destroy a buffer
+	-Function to remove oldest item from a buffer
+	-Function to check is buffer full
+	-Function to check is buffer empty
+	-Function to verify buffer is initialized
+	-Function to verify the buffer pointer is valid
+	-Function to initialize a buffer
+	-Function to destroy a buffer
 
 2)Timestamps-Used at the start and end of DMA transfer.
 
@@ -88,8 +88,8 @@ sampling until the next series of samples are collected.
 4)LEDs-Controlled using Semaphores
 
 5)DMA transfer-Functions to transfer adc buffer to dsp buffer.
--Function to initialize DMA transfer 
--Function to transfer using DMA
+	-Function to initialize DMA transfer 
+	-Function to transfer using DMA
 
 6)Extra Credit (10 points) –  5 points to use a FreeRTOS Mutex or Semaphore to control access
 to the shared LED and 5 points to use a FreeRTOS Queue in place of one of the use of your custom buffers.
