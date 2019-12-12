@@ -76,5 +76,5 @@ While the CPU is sleeping, if press SW3 button once or several time on board the
 by external interrupt and continuous enter sleep mode after complete interrupt service.
 The period of time delay is not change after occur external interrupt.
 Customization options
-=====================
+====================
 
