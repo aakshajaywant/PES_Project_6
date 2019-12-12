@@ -1,4 +1,4 @@
-# PES_Project_6
+# PES_Project_6_v1
 PES_PROJECT_6
 Author: AAKSHA JAYWANT & RUCHA BORWANKAR 
 Project Name: FreeRTOS, ADC, DAC, DMA, DSP 
