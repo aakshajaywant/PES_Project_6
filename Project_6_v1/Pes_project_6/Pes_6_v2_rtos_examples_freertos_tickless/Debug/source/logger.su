@@ -1,0 +1,4 @@
+logger.c:41:6:timestamps	32	static
+logger.c:73:6:log_level	16	static
+logger.c:104:6:logger_func	16	static
+logger.c:178:6:log_messages	24	static

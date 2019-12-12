@@ -1,0 +1,17 @@
+core_cm0plus.h:745:22:NVIC_EnableIRQ	16	static
+core_cm0plus.h:804:22:NVIC_SetPriority	24	static
+fsl_clock.h:584:20:CLOCK_EnableClock	24	static
+fsl_common.h:212:20:EnableIRQ	16	static
+fsl_adc16.h:500:24:ADC16_GetChannelConversionValue	16	static
+fsl_port.h:389:20:PORT_SetPinInterruptConfig	24	static
+fsl_lptmr.h:199:20:LPTMR_EnableInterrupts	24	static
+freertos_tickless.c:100:6:ADC0_IRQHandler	8	static
+freertos_tickless.c:107:5:main	40	static
+freertos_tickless.c:181:13:DAC_converter	24	static
+freertos_tickless.c:230:13:ADC_converter	40	static
+freertos_tickless.c:337:13:SW_task	16	static
+freertos_tickless.c:354:13:dsp_math	352	static
+freertos_tickless.c:410:8:PORTA_IRQHandler	16	static
+freertos_tickless.c:424:8:LPTMR0_IRQHandler	8	static
+freertos_tickless.c:433:15:vPortGetLptrmBase	8	static
+freertos_tickless.c:442:13:vPortGetLptmrIrqn	8	static
